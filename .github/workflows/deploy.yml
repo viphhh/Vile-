@@ -3,7 +3,7 @@ name: 🚀 Build and Deploy to Namecheap
 on:
   push:
     branches:
-      - main
+      - main # أو master حسب الفرع عندك
 
 jobs:
   build-and-deploy:
@@ -18,16 +18,17 @@ jobs:
       with:
         node-version: '20'
 
-    - name: 📦 Install Dependencies & Build
-      run: |
-        npm install
-        npm run build
+    - name: 📦 Install Dependencies
+      run: npm install
 
-    - name: 🚀 Sync Build to FTP
+    - name: 🔨 Build Project
+      run: npm run build
+
+    - name: 🚀 Upload to FTP
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
-        server-dir: /public_html/
+        server-dir: ./public_html/
