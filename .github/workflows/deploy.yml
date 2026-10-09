@@ -32,5 +32,6 @@ jobs:
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
         server-dir: ./
-        clean-include: |
+        exclude: |
           **
+          !**/dist/**
