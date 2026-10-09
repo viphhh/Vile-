@@ -1,0 +1,867 @@
+import React, { useState, useEffect } from 'react';
+import { Navbar } from './components/Navbar';
+import { HeroSearch } from './components/HeroSearch';
+import { SidebarFilters } from './components/SidebarFilters';
+import { HotelCard } from './components/HotelCard';
+import { HotelDetailModal } from './components/HotelDetailModal';
+import { SimulatedEmailModal } from "./components/SimulatedEmailModal";
+import { BookingModal } from './components/BookingModal';
+import { AiConciergeModal } from './components/AiConciergeModal';
+import { WelcomeModal } from './components/WelcomeModal';
+import { InquiryModal } from './components/InquiryModal';
+import { PriceAlertModal } from './components/PriceAlertModal';
+import { FloatingChatAssistant } from './components/FloatingChatAssistant';
+import { MyBookingsView } from './components/MyBookingsView';
+import { CityExplore } from './components/CityExplore';
+import { FavoritesView } from './components/FavoritesView';
+import { CustomerDashboard } from './components/CustomerDashboard';
+import { AdminDashboard } from './components/AdminDashboard';
+import { AdminLoginModal } from './components/AdminLoginModal';
+import { AuthScreen } from './components/AuthScreen';
+import { Footer } from './components/Footer';
+import { PageViewer } from './components/PageViewer';
+import { Hotel, RoomType, SearchFilters, Booking, HotelInquiry, PriceAlert, SitePage } from './types';
+import { HOTELS_DATA } from './data/hotels';
+import { Sparkles, Building2, SlidersHorizontal, ArrowUpDown, Filter, ShieldCheck, Award } from 'lucide-react';
+
+export default function App() {
+  const [user, setUser] = useState<{ role: 'customer' | 'host'; name: string; email?: string } | null>(() => {
+    try {
+      const saved = localStorage.getItem('ksastays_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [activeTab, setActiveTab] = useState<'home' | 'cities' | 'ai' | 'bookings' | 'favorites' | 'dashboard'>('home');
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('ksastays_user');
+      if (saved) {
+        const u = JSON.parse(saved);
+        return u.role === 'host';
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  });
+  const [showAdminLoginModal, setShowAdminLoginModal] = useState<boolean>(false);
+
+  const handleLogin = (userData: { role: 'customer' | 'host'; name: string; email: string }) => {
+    setUser(userData);
+    try {
+      localStorage.setItem('ksastays_user', JSON.stringify(userData));
+      
+      setUsersList(prev => {
+        const exists = prev.find(u => u.email === userData.email);
+        if (exists) return prev;
+        const newList = [...prev, {
+          id: Date.now().toString(),
+          name: userData.name,
+          email: userData.email,
+          role: userData.role,
+          createdAt: new Date().toISOString(),
+          status: 'active'
+        }];
+        localStorage.setItem('ksastays_users_list', JSON.stringify(newList));
+        return newList;
+      });
+
+    } catch (e) {
+      console.error(e);
+    }
+    if (userData.role === 'host') {
+      setIsAdminAuthenticated(true);
+      setActiveTab('dashboard'); // Automatically go to dashboard for host
+    } else {
+      setIsAdminAuthenticated(false);
+      setActiveTab('home');
+    }
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setIsAdminAuthenticated(false);
+    setActiveTab('home');
+    try {
+      localStorage.removeItem('ksastays_user');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSelectTab = (tab: 'home' | 'cities' | 'ai' | 'bookings' | 'favorites' | 'dashboard') => {
+    setActiveTab(tab);
+  };
+  const [filters, setFilters] = useState<SearchFilters>({
+    city: 'all',
+    checkIn: new Date().toISOString().split('T')[0],
+    checkOut: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
+    guests: 2,
+    rooms: 1,
+    minPrice: 0,
+    maxPrice: 5000,
+    starRatings: [],
+    amenities: [],
+    sortBy: 'recommended',
+    searchQuery: '',
+  });
+
+  const deduplicateHotels = (list: Hotel[]): Hotel[] => {
+    const seen = new Set<string>();
+    return list.filter((item) => {
+      if (!item || !item.id || seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  };
+
+  const [hotels, setHotels] = useState<Hotel[]>(() => {
+    try {
+      const saved = localStorage.getItem('ksastays_hotels');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return deduplicateHotels(parsed);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return deduplicateHotels(HOTELS_DATA);
+  });
+
+  const handleAddHotel = (newHotel: Hotel) => {
+    setHotels((prev) => {
+      const safeHotel = {
+        ...newHotel,
+        id: newHotel.id || 'hotel_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        hostEmail: newHotel.hostEmail || user?.email // Assign to current user if not provided
+      };
+      const updated = deduplicateHotels([safeHotel, ...prev]);
+      try {
+        localStorage.setItem('ksastays_hotels', JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
+  };
+
+  const handleUpdateHotel = (updatedHotel: Hotel) => {
+    setHotels((prev) => {
+      const updated = deduplicateHotels(prev.map((h) => (h.id === updatedHotel.id ? updatedHotel : h)));
+      try {
+        localStorage.setItem('ksastays_hotels', JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
+  };
+
+  const handleDeleteHotel = (hotelId: string) => {
+    setHotels((prev) => {
+      const updated = prev.filter((h) => h.id !== hotelId);
+      try {
+        localStorage.setItem('ksastays_hotels', JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+      return updated;
+    });
+  };
+
+  const [loadingHotels, setLoadingHotels] = useState(false);
+
+  // Theme (Dark / Light Mode) stored in LocalStorage
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    try {
+      const saved = localStorage.getItem('ksastays_theme');
+      if (saved === 'light' || saved === 'dark') {
+        return saved;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return 'dark'; // default
+  });
+
+  // Favorites stored in LocalStorage
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('ksastays_favorites');
+      return saved ? JSON.parse(saved) : ['fairmont-makkah', 'habitas-alula'];
+    } catch {
+      return ['fairmont-makkah', 'habitas-alula'];
+    }
+  });
+
+  // Bookings stored in LocalStorage
+  const [bookings, setBookings] = useState<Booking[]>(() => {
+    try {
+      const saved = localStorage.getItem('ksastays_bookings');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Inquiries stored in LocalStorage
+  const [simulatedEmailBooking, setSimulatedEmailBooking] = useState<Booking | null>(null);
+  const [inquiries, setInquiries] = useState<HotelInquiry[]>(() => {
+    try {
+      const saved = localStorage.getItem('ksastays_inquiries');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Price Alerts stored in LocalStorage
+  const [priceAlerts, setPriceAlerts] = useState<PriceAlert[]>(() => {
+    try {
+      const saved = localStorage.getItem('ksastays_price_alerts');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [usersList, setUsersList] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('ksastays_users_list');
+      return saved ? JSON.parse(saved) : [
+        { id: '1', name: 'مدير النظام', email: 'Hp@gmail.com', role: 'admin', createdAt: new Date().toISOString(), status: 'active' }
+      ];
+    } catch {
+      return [];
+    }
+  });
+
+  // Modals & Banners
+  
+  const [pages, setPages] = useState<SitePage[]>(() => {
+    const saved = localStorage.getItem('ksastays_pages');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      { id: '1', title: 'الرئيسية', slug: '/', content: 'محتوى الصفحة الرئيسية', status: 'published', type: 'أساسية', lastEdited: 'اليوم' },
+      { id: '2', title: 'من نحن', slug: '/about', content: 'محتوى صفحة من نحن', status: 'published', type: 'فرعية', lastEdited: 'قبل يومين' },
+      { id: '3', title: 'الشروط والأحكام', slug: '/terms', content: 'محتوى صفحة الشروط', status: 'draft', type: 'قانونية', lastEdited: 'قبل أسبوع' },
+      { id: '4', title: 'سياسة الخصوصية', slug: '/privacy', content: 'محتوى صفحة سياسة الخصوصية', status: 'published', type: 'قانونية', lastEdited: 'منذ شهر' },
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('ksastays_pages', JSON.stringify(pages));
+  }, [pages]);
+
+  const [activePageSlug, setActivePageSlug] = useState<string | null>(null);
+  
+  const handleAddPage = (page: SitePage) => setPages([...pages, page]);
+  const handleUpdatePage = (page: SitePage) => setPages(pages.map(p => p.id === page.id ? page : p));
+  const handleDeletePage = (pageId: string) => setPages(pages.filter(p => p.id !== pageId));
+
+  const [selectedHotel, setSelectedHotel] = useState<Hotel | null>(null);
+  const [bookingTarget, setBookingTarget] = useState<{ hotel: Hotel; room: RoomType } | null>(null);
+  const [inquiryTarget, setInquiryTarget] = useState<{ hotel: Hotel; room?: RoomType | null } | null>(null);
+  const [priceAlertTarget, setPriceAlertTarget] = useState<Hotel | null>(null);
+  const [priceDropNotification, setPriceDropNotification] = useState<{
+    hotelName: string;
+    oldPrice: number;
+    newPrice: number;
+    discountPercent: number;
+  } | null>(null);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [welcomeModalOpen, setWelcomeModalOpen] = useState(true);
+
+  // Sync theme with localStorage and root element
+  useEffect(() => {
+    try {
+      localStorage.setItem('ksastays_theme', theme);
+    } catch (e) {
+      console.error(e);
+    }
+
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else {
+      root.classList.remove('dark');
+      root.classList.add('light');
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  // Sync favorites with localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('ksastays_favorites', JSON.stringify(favorites));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [favorites]);
+
+  // Sync bookings with localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('ksastays_bookings', JSON.stringify(bookings));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [bookings]);
+
+  // Sync inquiries with localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('ksastays_inquiries', JSON.stringify(inquiries));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [inquiries]);
+
+  // Sync priceAlerts with localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('ksastays_price_alerts', JSON.stringify(priceAlerts));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [priceAlerts]);
+
+  // Handle shared hotel URL parameter ?hotel=id
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && window.location.search) {
+        const params = new URLSearchParams(window.location.search);
+        const hotelId = params.get('hotel');
+        if (hotelId) {
+          const matched = HOTELS_DATA.find((h) => h.id === hotelId);
+          if (matched) {
+            setSelectedHotel(matched);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing shared hotel URL:', e);
+    }
+  }, []);
+
+
+  const handleOpenPriceAlert = (hotel: Hotel) => {
+    setPriceAlertTarget(hotel);
+  };
+
+  const handleSavePriceAlert = (alertData: Omit<PriceAlert, 'id' | 'createdAt'>) => {
+    setPriceAlerts((prev) => {
+      const existingIdx = prev.findIndex((a) => a.hotelId === alertData.hotelId);
+      if (existingIdx >= 0) {
+        const updated = [...prev];
+        updated[existingIdx] = {
+          ...updated[existingIdx],
+          ...alertData,
+        };
+        return updated;
+      } else {
+        const newAlert: PriceAlert = {
+          ...alertData,
+          id: 'alert_' + Date.now(),
+          createdAt: new Date().toISOString(),
+        };
+        return [newAlert, ...prev];
+      }
+    });
+  };
+
+  const handleRemovePriceAlert = (alertId: string) => {
+    setPriceAlerts((prev) => prev.filter((a) => a.id !== alertId));
+  };
+
+  const handleSimulatePriceDrop = () => {
+    // Select a hotel (preferably from favorites, or first hotel in list)
+    const favoriteHotels = hotels.filter((h) => favorites.includes(h.id));
+    const targetHotel = favoriteHotels[0] || hotels[0];
+
+    if (!targetHotel) return;
+
+    const currentPrice = targetHotel.discountedPrice || targetHotel.basePricePerNight;
+    const newPrice = Math.round(currentPrice * 0.75); // 25% price drop
+    const discountPercent = 25;
+
+    setPriceDropNotification({
+      hotelName: targetHotel.name,
+      oldPrice: currentPrice,
+      newPrice,
+      discountPercent,
+    });
+
+    // Automatically ensure alert is registered as triggered
+    setPriceAlerts((prev) => {
+      const exists = prev.find((a) => a.hotelId === targetHotel.id);
+      if (exists) {
+        return prev.map((a) =>
+          a.hotelId === targetHotel.id
+            ? { ...a, triggered: true, triggeredPrice: newPrice }
+            : a
+        );
+      } else {
+        return [
+          {
+            id: 'alert_' + Date.now(),
+            hotelId: targetHotel.id,
+            hotelName: targetHotel.name,
+            hotelImage: targetHotel.image,
+            hotelCity: targetHotel.city,
+            currentPrice,
+            targetPrice: newPrice,
+            contactChannel: 'whatsapp',
+            contactValue: '0501234567',
+            enabled: true,
+            createdAt: new Date().toISOString(),
+            triggered: true,
+            triggeredPrice: newPrice,
+          },
+          ...prev,
+        ];
+      }
+    });
+  };
+
+  const handleOpenInquiry = (hotel: Hotel, room?: RoomType | null) => {
+    setInquiryTarget({ hotel, room: room || null });
+  };
+
+  const handleSubmitInquiry = (inquiryData: Omit<HotelInquiry, 'id' | 'inquiryCode' | 'createdAt' | 'status'>) => {
+    const newInquiry: HotelInquiry = {
+      ...inquiryData,
+      id: 'inq_' + Date.now(),
+      inquiryCode: 'INQ-' + Math.floor(10000 + Math.random() * 90000),
+      createdAt: new Date().toISOString(),
+      status: 'pending',
+    };
+    setInquiries((prev) => [newInquiry, ...prev]);
+  };
+
+  // Fetch hotels from API or apply client filtering
+  const fetchHotels = async () => {
+    setLoadingHotels(true);
+    try {
+      const queryParams = new URLSearchParams();
+      if (filters.city && filters.city !== 'all') queryParams.set('city', filters.city);
+      if (filters.maxPrice) queryParams.set('maxPrice', filters.maxPrice.toString());
+      if (filters.starRatings.length) queryParams.set('stars', filters.starRatings.join(','));
+      if (filters.searchQuery) queryParams.set('q', filters.searchQuery);
+
+      const res = await fetch(`/api/hotels?${queryParams.toString()}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.hotels)) {
+        let list = data.hotels as Hotel[];
+
+        // Apply Amenities client-side filter
+        if (filters.amenities.length > 0) {
+          list = list.filter((h) =>
+            filters.amenities.every((am) => h.amenities.includes(am))
+          );
+        }
+
+        // Apply Sorting
+        if (filters.sortBy === 'price_asc') {
+          list.sort((a, b) => (a.discountedPrice || a.basePricePerNight) - (b.discountedPrice || b.basePricePerNight));
+        } else if (filters.sortBy === 'price_desc') {
+          list.sort((a, b) => (b.discountedPrice || b.basePricePerNight) - (a.discountedPrice || a.basePricePerNight));
+        } else if (filters.sortBy === 'rating') {
+          list.sort((a, b) => b.reviewScore - a.reviewScore);
+        }
+
+        setHotels(deduplicateHotels(list));
+      } else {
+        setHotels(deduplicateHotels(HOTELS_DATA));
+      }
+    } catch {
+      // Fallback
+      setHotels(deduplicateHotels(HOTELS_DATA));
+    } finally {
+      setLoadingHotels(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHotels();
+  }, [filters.city, filters.maxPrice, filters.starRatings, filters.sortBy, filters.amenities]);
+
+  const toggleFavorite = (hotelId: string) => {
+    setFavorites((prev) =>
+      prev.includes(hotelId) ? prev.filter((id) => id !== hotelId) : [...prev, hotelId]
+    );
+  };
+
+  const handleBookingConfirmed = (newBooking: Booking) => {
+    setBookings((prev) => [newBooking, ...prev]);
+    setSimulatedEmailBooking(newBooking);
+  };
+
+  const handleCancelBooking = (bookingId: string) => {
+    setBookings((prev) =>
+      prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' as const } : b))
+    );
+  };
+
+  const favoriteHotelsList = deduplicateHotels(hotels.filter((h) => favorites.includes(h.id)));
+
+  if (!user) {
+    return <AuthScreen onLogin={handleLogin} />;
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-cairo dir-rtl">
+      
+      {/* Top Navbar */}
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={handleSelectTab}
+        bookingsCount={bookings.filter((b) => b.status === 'confirmed').length}
+        favoritesCount={favorites.length}
+        onOpenAi={() => setAiModalOpen(true)}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onOpenWelcome={() => setWelcomeModalOpen(true)}
+        user={user}
+        onLogout={handleLogout}
+      />
+
+      {/* Simulated Price Drop Alert Toast Banner */}
+      {priceDropNotification && (
+        <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 px-4 py-3 border-b border-amber-300 shadow-xl flex items-center justify-between gap-3 animate-fade-in z-40">
+          <div className="flex items-center gap-3 max-w-5xl mx-auto flex-1">
+            <span className="text-xl">🔥</span>
+            <div>
+              <p className="font-extrabold text-xs sm:text-sm">
+                تنبيه انخفاض السعر! انخفض سعر <span className="underline font-black">{priceDropNotification.hotelName}</span> بنسبة {priceDropNotification.discountPercent}%!
+              </p>
+              <p className="text-[11px] text-slate-900 opacity-90">
+                السعر الجديد: <strong className="font-mono">{priceDropNotification.newPrice} ر.س</strong> بدلاً من <span className="line-through">{priceDropNotification.oldPrice} ر.س</span>
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setPriceDropNotification(null)}
+            className="p-1 rounded-lg bg-slate-950/10 hover:bg-slate-950/20 text-slate-950 font-bold text-xs"
+          >
+            إغلاق ✕
+          </button>
+        </div>
+      )}
+
+      {/* Main Views Container */}
+      <main className="flex-1">
+        
+        {/* DYNAMIC PAGE VIEWER */}
+        {activePageSlug && (
+          <PageViewer 
+            page={pages.find(p => p.slug === activePageSlug)} 
+            onBack={() => setActivePageSlug(null)} 
+          />
+        )}
+        
+        {/* VIEW 1: HOME & SEARCH */}
+        {!activePageSlug && activeTab === 'home' && (
+          <div className="space-y-10">
+            
+            {/* Search Hero */}
+            <HeroSearch
+              filters={filters}
+              setFilters={setFilters}
+              onSearch={fetchHotels}
+              onOpenAi={() => setAiModalOpen(true)}
+            />
+
+            {/* Hotel Results Section */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex flex-col lg:flex-row gap-6">
+                {/* Sidebar Filters */}
+                <div className="w-full lg:w-1/4">
+                  <SidebarFilters filters={filters} setFilters={setFilters} />
+                </div>
+                
+                {/* Main Content */}
+                <div className="w-full lg:w-3/4 space-y-6">
+              
+              {/* Controls & Sorting Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-amber-400" />
+                  <span className="font-extrabold text-white text-sm">
+                    {filters.city === 'all' ? 'جميع الفنادق المتاحة في المملكة' : `فنادق ${filters.city}`}
+                  </span>
+                  <span className="text-xs bg-slate-800 text-amber-400 font-extrabold px-2.5 py-0.5 rounded-full border border-slate-700">
+                    {hotels.length} فندق
+                  </span>
+                </div>
+
+                {/* Sorting Dropdown */}
+                <div className="flex items-center gap-2 text-xs font-semibold">
+                  <span className="text-slate-400 flex items-center gap-1">
+                    <ArrowUpDown className="w-3.5 h-3.5 text-amber-400" />
+                    ترتيب نتائج البحث:
+                  </span>
+                  <select
+                    value={filters.sortBy}
+                    onChange={(e) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        sortBy: e.target.value as 'recommended' | 'price_asc' | 'price_desc' | 'rating',
+                      }))
+                    }
+                    className="bg-slate-900 text-white font-bold px-3 py-1.5 rounded-xl border border-slate-800 focus:outline-none cursor-pointer text-xs"
+                  >
+                    <option value="recommended">الأكثر ملاءمة وتوصية</option>
+                    <option value="rating">الأعلى تقييماً من النزلاء</option>
+                    <option value="price_asc">السعر: من الأقل للأعلى</option>
+                    <option value="price_desc">السعر: من الأعلى للأقل</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Hotels Grid */}
+              {loadingHotels ? (
+                <div className="py-20 text-center space-y-3">
+                  <div className="w-10 h-10 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="text-xs text-slate-400 font-bold">جاري البحث جلياً في فنادق المملكة...</p>
+                </div>
+              ) : hotels.length === 0 ? (
+                <div className="bg-slate-950 border border-slate-800 rounded-3xl p-12 text-center space-y-4">
+                  <p className="text-lg font-bold text-white">لم نجد فنادق تطابق شروط الفلترة المحددة</p>
+                  <p className="text-xs text-slate-400">يرجى تعديل أسلوب البحث أو إزالة بعض فلاتر التصفية</p>
+                  <button
+                    onClick={() =>
+                      setFilters({
+                        city: 'all',
+                        checkIn: new Date().toISOString().split('T')[0],
+                        checkOut: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
+                        guests: 2,
+                        rooms: 1,
+                        minPrice: 0,
+                        maxPrice: 5000,
+                        starRatings: [],
+                        amenities: [],
+                        sortBy: 'recommended',
+                        searchQuery: '',
+                      })
+                    }
+                    className="px-5 py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs"
+                  >
+                    عرض كافة الفنادق
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {hotels.map((hotel, index) => (
+                    <HotelCard
+                      key={`${hotel.id}-${index}`}
+                      hotel={hotel}
+                      isFavorite={favorites.includes(hotel.id)}
+                      hasPriceAlert={priceAlerts.some((a) => a.hotelId === hotel.id && a.enabled)}
+                      onToggleFavorite={toggleFavorite}
+                      onSelectHotel={(h) => setSelectedHotel(h)}
+                      onInquire={handleOpenInquiry}
+                      onOpenPriceAlert={handleOpenPriceAlert}
+                    />
+                  ))}
+                </div>
+              )}
+
+                </div>
+              </div>
+            </section>
+
+            {/* Value Proposition Badges */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-950 border border-slate-800 p-6 rounded-3xl text-center">
+                <div className="space-y-1">
+                  <div className="w-10 h-10 bg-amber-500/20 text-amber-400 rounded-2xl flex items-center justify-center mx-auto">
+                    <Award className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-extrabold text-white text-sm">ضمان أفضل سعر</h4>
+                  <p className="text-xs text-slate-400">أسعار تنافسية ومباشرة بدون عمولات خفية</p>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="w-10 h-10 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-extrabold text-white text-sm">تأكيد حجز فورى</h4>
+                  <p className="text-xs text-slate-400">تصلك التذكرة والوصل فوراً برمز الحجز QR</p>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="w-10 h-10 bg-teal-500/20 text-teal-400 rounded-2xl flex items-center justify-center mx-auto">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <h4 className="font-extrabold text-white text-sm">مستشار حجز ذكي</h4>
+                  <p className="text-xs text-slate-400">توصيات مخصصة بذكاء الاصطناعي لرحلتك</p>
+                </div>
+              </div>
+                </div>
+              </div>
+            </section>
+
+          </div>
+        )}
+
+        {/* VIEW 2: DESTINATIONS */}
+        {activeTab === 'cities' && (
+          <CityExplore
+            onSelectCity={(cityName) => {
+              setFilters((prev) => ({ ...prev, city: cityName }));
+              setActiveTab('home');
+            }}
+            onOpenAi={() => setAiModalOpen(true)}
+          />
+        )}
+
+        {/* VIEW 3: DASHBOARD */}
+        {activeTab === 'dashboard' && (
+          user?.role === 'host' ? (
+            <AdminDashboard
+              hotels={hotels}
+              bookings={bookings}
+              usersList={usersList}
+              onAddHotel={handleAddHotel}
+              onUpdateHotel={handleUpdateHotel}
+              onDeleteHotel={handleDeleteHotel}
+              onLogout={handleLogout}
+              user={user}
+            />
+          ) : (
+            <CustomerDashboard
+              user={user}
+              bookings={bookings}
+              inquiries={inquiries}
+              favorites={favorites}
+              hotels={hotels}
+              priceAlerts={priceAlerts}
+              onLogout={handleLogout}
+              onNavigateHome={() => setActiveTab('home')}
+              onRemoveFavorite={toggleFavorite}
+              onCancelBooking={handleCancelBooking}
+              onSimulateEmail={setSimulatedEmailBooking}
+              onSelectHotel={(h) => setSelectedHotel(h)}
+              onOpenPriceAlert={handleOpenPriceAlert}
+              onSimulatePriceDrop={handleSimulatePriceDrop}
+            />
+          )
+        )}
+
+      </main>
+
+      {/* Hotel Detail Modal */}
+      {selectedHotel && (
+        <HotelDetailModal
+          hotel={selectedHotel}
+          onClose={() => setSelectedHotel(null)}
+          onBookRoom={(hotel, room) => {
+            setSelectedHotel(null);
+            setBookingTarget({ hotel, room });
+          }}
+          isFavorite={favorites.includes(selectedHotel.id)}
+          hasPriceAlert={priceAlerts.some((a) => a.hotelId === selectedHotel.id && a.enabled)}
+          onToggleFavorite={toggleFavorite}
+          onOpenInquiry={(hotel, room) => handleOpenInquiry(hotel, room)}
+          onOpenPriceAlert={handleOpenPriceAlert}
+        />
+      )}
+
+      {/* Price Alert Config Modal */}
+      {priceAlertTarget && (
+        <PriceAlertModal
+          hotel={priceAlertTarget}
+          existingAlert={priceAlerts.find((a) => a.hotelId === priceAlertTarget.id)}
+          isOpen={!!priceAlertTarget}
+          onClose={() => setPriceAlertTarget(null)}
+          onSaveAlert={handleSavePriceAlert}
+          onRemoveAlert={handleRemovePriceAlert}
+        />
+      )}
+
+      {/* Inquiry Modal */}
+      {inquiryTarget && (
+        <InquiryModal
+          hotel={inquiryTarget.hotel}
+          selectedRoom={inquiryTarget.room}
+          isOpen={!!inquiryTarget}
+          onClose={() => setInquiryTarget(null)}
+          onSubmitInquiry={handleSubmitInquiry}
+        />
+      )}
+
+      {/* Booking Checkout Wizard Modal */}
+      {bookingTarget && (
+        <BookingModal
+          hotel={bookingTarget.hotel}
+          room={bookingTarget.room}
+          checkInDate={filters.checkIn}
+          checkOutDate={filters.checkOut}
+          guestsCount={filters.guests}
+          roomsCount={filters.rooms}
+          onClose={() => setBookingTarget(null)}
+          onBookingConfirmed={handleBookingConfirmed}
+        />
+      )}
+
+      {/* AI Concierge Modal */}
+      <AiConciergeModal
+        isOpen={aiModalOpen}
+        onClose={() => setAiModalOpen(false)}
+        onSelectHotel={(h) => setSelectedHotel(h)}
+      />
+
+      {/* Welcome VIP Modal */}
+      <WelcomeModal
+        isOpen={welcomeModalOpen}
+        onClose={() => setWelcomeModalOpen(false)}
+        onExplore={() => {
+          setActiveTab('home');
+        }}
+        onOpenAi={() => setAiModalOpen(true)}
+      />
+
+      {/* Floating Personal Assistant Chat Widget */}
+      <FloatingChatAssistant
+        onSelectHotel={(h) => setSelectedHotel(h)}
+        onOpenPriceAlert={handleOpenPriceAlert}
+      />
+
+      {/* Admin Protected Login Modal */}
+      <AdminLoginModal
+        isOpen={showAdminLoginModal}
+        onClose={() => setShowAdminLoginModal(false)}
+        onSuccess={() => {
+          setIsAdminAuthenticated(true);
+          setUser({ role: 'host', name: 'مدير النظام', email: 'p@gmail.com' });
+          setShowAdminLoginModal(false);
+          setActiveTab('dashboard');
+          try {
+            localStorage.setItem('ksastays_user', JSON.stringify({ role: 'host', name: 'مدير النظام', email: 'p@gmail.com' }));
+            sessionStorage.setItem('ksastays_admin_authed', 'true');
+          } catch (e) {
+            console.error(e);
+          }
+        }}
+      />
+
+      <SimulatedEmailModal booking={simulatedEmailBooking} onClose={() => setSimulatedEmailBooking(null)} />
+
+      {/* Footer */}
+      <Footer pages={pages.filter(p => p.status === 'published')} onPageClick={setActivePageSlug} />
+
+    </div>
+  );
+}

@@ -1,0 +1,261 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Stores user profile data synced from Google Authentication",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Firebase Auth UID"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Full name of the user"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "User avatar profile image URL"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["customer", "admin"],
+          "description": "User privilege role"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of account creation"
+        }
+      },
+      "required": ["id", "email", "createdAt"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Hotel room reservation created by a user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique booking reference ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of customer"
+        },
+        "hotelId": {
+          "type": "string",
+          "description": "Hotel identifier"
+        },
+        "hotelName": {
+          "type": "string",
+          "description": "Hotel title in Arabic"
+        },
+        "roomTypeId": {
+          "type": "string",
+          "description": "Reserved room category ID"
+        },
+        "roomName": {
+          "type": "string",
+          "description": "Room name in Arabic"
+        },
+        "checkIn": {
+          "type": "string",
+          "description": "Check-in date (YYYY-MM-DD)"
+        },
+        "checkOut": {
+          "type": "string",
+          "description": "Check-out date (YYYY-MM-DD)"
+        },
+        "guests": {
+          "type": "number",
+          "description": "Number of guests"
+        },
+        "rooms": {
+          "type": "number",
+          "description": "Number of booked rooms"
+        },
+        "totalPrice": {
+          "type": "number",
+          "description": "Total reservation price in SAR"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["confirmed", "pending", "cancelled"],
+          "description": "Booking status"
+        },
+        "customerName": {
+          "type": "string",
+          "description": "Guest name"
+        },
+        "customerEmail": {
+          "type": "string",
+          "description": "Guest email for confirmation vouchers"
+        },
+        "customerPhone": {
+          "type": "string",
+          "description": "Guest contact number"
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Selected payment method (mada, apple_pay, visa, hotel)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of reservation"
+        }
+      },
+      "required": ["id", "userId", "hotelId", "hotelName", "checkIn", "checkOut", "totalPrice", "status", "createdAt"]
+    },
+    "Favorite": {
+      "title": "Favorite",
+      "description": "Saved hotel favorite by a user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Document ID (userId_hotelId)"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID"
+        },
+        "hotelId": {
+          "type": "string",
+          "description": "Referenced hotel ID"
+        },
+        "hotelName": {
+          "type": "string",
+          "description": "Hotel name"
+        },
+        "hotelCity": {
+          "type": "string",
+          "description": "City of hotel"
+        },
+        "hotelImage": {
+          "type": "string",
+          "description": "Thumbnail image of hotel"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp"
+        }
+      },
+      "required": ["id", "userId", "hotelId", "createdAt"]
+    },
+    "PriceAlert": {
+      "title": "PriceAlert",
+      "description": "Price drop alert subscription by a user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Alert ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID"
+        },
+        "hotelId": {
+          "type": "string",
+          "description": "Target hotel ID"
+        },
+        "hotelName": {
+          "type": "string",
+          "description": "Hotel title"
+        },
+        "targetPrice": {
+          "type": "number",
+          "description": "Threshold price in SAR"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether alert is active"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp"
+        }
+      },
+      "required": ["id", "userId", "hotelId", "enabled", "createdAt"]
+    },
+    "Inquiry": {
+      "title": "Inquiry",
+      "description": "Custom inquiry or corporate price request submitted by user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique inquiry ID"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID or anonymous UID"
+        },
+        "hotelId": {
+          "type": "string",
+          "description": "Target hotel ID"
+        },
+        "hotelName": {
+          "type": "string",
+          "description": "Target hotel name"
+        },
+        "roomName": {
+          "type": "string",
+          "description": "Optional requested room type"
+        },
+        "name": {
+          "type": "string",
+          "description": "Inquirer full name"
+        },
+        "email": {
+          "type": "string",
+          "description": "Inquirer email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Inquirer phone number"
+        },
+        "message": {
+          "type": "string",
+          "description": "Details of the inquiry"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["new", "answered", "closed"],
+          "description": "Inquiry handling status"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp"
+        }
+      },
+      "required": ["id", "hotelId", "name", "phone", "message", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Individual user profiles and account settings"
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Hotel reservations made by users"
+    },
+    "/favorites/{favoriteId}": {
+      "schema": "Favorite",
+      "description": "Saved favorite hotels per user"
+    },
+    "/priceAlerts/{alertId}": {
+      "schema": "PriceAlert",
+      "description": "Active price drop alert subscriptions"
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": "Inquiry",
+      "description": "Customer hotel inquiries and special requests"
+    }
+  }
+}

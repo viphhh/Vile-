@@ -1,0 +1,8 @@
+{
+  "name": "فيليوسيتي",
+  "description": "منصة حجز الفنادق والمنتجعات الفاخرة في جميع مدن المملكة العربية السعودية مع مستشار حجز ذكي بذكاء جيميناي",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
