@@ -33,7 +33,5 @@ jobs:
           protocol: ftp
           port: 21
           local-dir: ./dist/
-          # لو حساب الـ FTP جذره public_html خلّيها ./
-          # لو جذره /home/velofyor غيّرها إلى public_html/
           server-dir: ./
           dangerous-clean-slate: false
