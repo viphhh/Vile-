@@ -10,26 +10,30 @@ jobs:
     name: 🎉 Build & Deploy
     runs-on: ubuntu-latest
     steps:
-    - name: 🚚 Get latest code
-      uses: actions/checkout@v4
+      - name: 🚚 Get latest code
+        uses: actions/checkout@v4
 
-    - name: 🛠️ Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
+      - name: 🛠️ Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-    - name: 📦 Install Dependencies
-      run: npm install
+      - name: 📦 Install Dependencies
+        run: npm install
 
-    - name: 🔨 Build Project
-      run: npm run build
+      - name: 🔨 Build Project
+        run: npm run build
 
-    - name: 🚀 Upload to FTP
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./dist/
-        server-dir: ./public_html/
-        dangerous-clean-slate: false
+      - name: 🚀 Upload to FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftp
+          port: 21
+          local-dir: ./dist/
+          # لو حساب الـ FTP جذره public_html خلّيها ./
+          # لو جذره /home/velofyor غيّرها إلى public_html/
+          server-dir: ./
+          dangerous-clean-slate: false
